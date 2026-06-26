@@ -1,7 +1,7 @@
 {
   "users": {
     "type": "template_list",
-    "description": "提示词注入规则列表",
+    "description": "提示词注入规则列表（聊天中发送 /tsc help 查看指令帮助）",
     "templates": {
       "user": {
         "name": "注入规则",
