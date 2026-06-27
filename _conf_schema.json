@@ -18,6 +18,11 @@
             "type": "text",
             "hint": "该用户发消息时自动追加到系统提示词的内容",
             "default": ""
+          },
+          "enabled": {
+            "description": "是否启用",
+            "type": "bool",
+            "default": true
           }
         }
       }

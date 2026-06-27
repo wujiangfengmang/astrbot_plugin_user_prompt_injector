@@ -52,6 +52,7 @@ class UserPromptInjector(Star):
                 continue
             item['target_qq'] = qq
             item.setdefault('inject_text', '')
+            item.setdefault('enabled', True)
             item['__template_key'] = TEMPLATE_KEY
             if qq in merged:
                 update_count += 1
@@ -72,6 +73,9 @@ class UserPromptInjector(Star):
         sender = str(event.get_sender_id()).strip()
         for u in users:
             if str(u.get('target_qq', '')).strip() == sender:
+                if not u.get('enabled', True):
+                    logger.debug(f'[提示词注入器] QQ={sender} 匹配但规则已禁用，跳过')
+                    return
                 text = str(u.get('inject_text', '')).strip()
                 if text:
                     logger.info(f'[提示词注入器] 匹配成功 QQ={sender}')
@@ -104,7 +108,8 @@ class UserPromptInjector(Star):
         users = self.config.get('users', [])
         clean = [{
             'target_qq': str(u.get('target_qq', '')).strip(),
-            'inject_text': str(u.get('inject_text', ''))
+            'inject_text': str(u.get('inject_text', '')),
+            'enabled': bool(u.get('enabled', True))
         } for u in users]
         text = json.dumps(clean, ensure_ascii=False, indent=2)
         lines = text.split('\n')
