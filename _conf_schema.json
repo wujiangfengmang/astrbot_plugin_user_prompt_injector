@@ -5,7 +5,7 @@
     "templates": {
       "user": {
         "name": "注入规则",
-        "hint": "添加一条注入规则：QQ号 + 自定义提示词内容",
+        "hint": "添加一条注入规则：QQ号 + 默认提示词 + 可选群聊专属规则",
         "display_item": "target_qq",
         "items": {
           "target_qq": {
@@ -14,15 +14,24 @@
             "default": ""
           },
           "inject_text": {
-            "description": "注入的提示词",
+            "description": "默认注入文本",
             "type": "text",
-            "hint": "该用户发消息时自动追加到系统提示词的内容",
+            "hint": "该用户发消息时默认追加到系统提示词的内容。如果下方配置了群聊专属规则，对应群聊将使用专属文本",
             "default": ""
           },
           "enabled": {
             "description": "是否启用",
             "type": "bool",
             "default": true
+          },
+          "group_overrides": {
+            "description": "群聊专属规则（可选）",
+            "type": "list",
+            "hint": "每行一条：群号+空格+提示词。例如：123456 在这个群对他温柔一点。留空则所有群使用上方默认文本",
+            "default": [],
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

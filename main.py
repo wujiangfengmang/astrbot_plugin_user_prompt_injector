@@ -1,7 +1,7 @@
 """AstrBot 用户提示词注入器。
 
 根据 QQ 号自动向 LLM 系统提示词注入自定义规则，让 Bot 对不同用户展现不同态度。
-配置由 AstrBot 管理（data/config/）。
+支持按群聊设置专属规则，配置由 AstrBot 管理（data/config/）。
 
 指令：
 - /tsc 导出规则 → 返回 JSON 数组
@@ -34,6 +34,18 @@ class UserPromptInjector(Star):
 
     # ==================== 公共方法 ====================
 
+    def _parse_overrides(self, raw) -> list:
+        """解析 group_overrides → [{group_id, inject_text}]"""
+        if not isinstance(raw, list):
+            return []
+        result = []
+        for item in raw:
+            if isinstance(item, str):
+                parts = item.split(' ', 1)
+                if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+                    result.append({'group_id': parts[0].strip(), 'inject_text': parts[1].strip()})
+        return result
+
     def _merge_users(self, incoming: list, existing: list) -> tuple:
         """以 QQ 号去重合并，返回 (merged_list, new_count, update_count)"""
         merged = {}
@@ -54,6 +66,9 @@ class UserPromptInjector(Star):
             item.setdefault('inject_text', '')
             item.setdefault('enabled', True)
             item['__template_key'] = TEMPLATE_KEY
+
+            item.setdefault('group_overrides', [])
+
             if qq in merged:
                 update_count += 1
             else:
@@ -63,6 +78,14 @@ class UserPromptInjector(Star):
         return list(merged.values()), new_count, update_count
 
     # ==================== 注入逻辑 ====================
+
+    def _pick_text(self, user: dict, group_id: str) -> str:
+        """根据群号选择注入文本：优先群专属规则，否则默认"""
+        if group_id:
+            for override in self._parse_overrides(user.get('group_overrides', [])):
+                if override.get('group_id', '') == group_id:
+                    return override.get('inject_text', '')
+        return str(user.get('inject_text', '')).strip()
 
     @filter.on_llm_request()
     async def inject_prompt(self, event: AstrMessageEvent, req: ProviderRequest):
@@ -76,9 +99,13 @@ class UserPromptInjector(Star):
                 if not u.get('enabled', True):
                     logger.debug(f'[提示词注入器] QQ={sender} 匹配但规则已禁用，跳过')
                     return
-                text = str(u.get('inject_text', '')).strip()
+
+                group_id = str(event.message_obj.group_id).strip() if event.message_obj.group_id else ''
+                text = self._pick_text(u, group_id)
+
                 if text:
-                    logger.info(f'[提示词注入器] 匹配成功 QQ={sender}')
+                    suffix = f' 群={group_id}' if group_id else ''
+                    logger.info(f'[提示词注入器] 匹配成功 QQ={sender}{suffix}')
                     req.system_prompt += '\n' + text + '\n'
                 else:
                     logger.warning(f'[提示词注入器] QQ={sender} 匹配但注入文本为空')
@@ -109,7 +136,8 @@ class UserPromptInjector(Star):
         clean = [{
             'target_qq': str(u.get('target_qq', '')).strip(),
             'inject_text': str(u.get('inject_text', '')),
-            'enabled': bool(u.get('enabled', True))
+            'enabled': bool(u.get('enabled', True)),
+            'group_overrides': u.get('group_overrides', [])
         } for u in users]
         text = json.dumps(clean, ensure_ascii=False, indent=2)
         lines = text.split('\n')
